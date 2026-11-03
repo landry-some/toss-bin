@@ -2,9 +2,20 @@
 
 import argparse
 import sys
+from datetime import datetime
 
 from . import __version__
-from .trash import TossError, disk_size, entries, find, matches, put, restore
+from .trash import (
+    TossError,
+    disk_size,
+    entries,
+    find,
+    matches,
+    parse_age,
+    purge,
+    put,
+    restore,
+)
 
 
 def _put_parser() -> argparse.ArgumentParser:
@@ -36,6 +47,13 @@ def cmd_put(argv: list[str]) -> int:
         if args.verbose:
             print(f"{entry.original} -> trash ({entry.name})")
     return status
+
+
+def _size(path) -> int:
+    try:
+        return disk_size(path)
+    except OSError:
+        return 0
 
 
 def human_size(n: int) -> str:
@@ -91,7 +109,52 @@ def cmd_restore(argv: list[str]) -> int:
     return status
 
 
-COMMANDS = {"put": cmd_put, "list": cmd_list, "ls": cmd_list, "restore": cmd_restore}
+def cmd_empty(argv: list[str]) -> int:
+    p = argparse.ArgumentParser(prog="toss empty", description="Delete trashed items for good.")
+    p.add_argument("--older-than", metavar="AGE", help="only items deleted more than AGE ago (30d, 12h, 2w)")
+    p.add_argument("-y", "--yes", action="store_true", help="don't ask for confirmation")
+    args = p.parse_args(argv)
+
+    items = entries()
+    if args.older_than:
+        try:
+            cutoff = datetime.now() - parse_age(args.older_than)
+        except TossError as e:
+            print(f"toss: {e}", file=sys.stderr)
+            return 2
+        items = [e for e in items if e.deleted < cutoff]
+    if not items:
+        print("nothing to delete", file=sys.stderr)
+        return 0
+
+    total = human_size(sum(_size(e.file_path) for e in items))
+    if not args.yes:
+        if not sys.stdin.isatty():
+            print("toss: not a terminal, pass --yes to empty the trash", file=sys.stderr)
+            return 1
+        answer = input(f"Permanently delete {len(items)} item(s), {total}? [y/N] ")
+        if answer.strip().lower() not in ("y", "yes"):
+            print("cancelled", file=sys.stderr)
+            return 1
+
+    status = 0
+    for e in items:
+        try:
+            purge(e)
+        except TossError as err:
+            print(f"toss: {err}", file=sys.stderr)
+            status = 1
+    print(f"deleted {len(items)} item(s), {total}")
+    return status
+
+
+COMMANDS = {
+    "put": cmd_put,
+    "list": cmd_list,
+    "ls": cmd_list,
+    "restore": cmd_restore,
+    "empty": cmd_empty,
+}
 
 
 def main(argv: list[str] | None = None) -> int:

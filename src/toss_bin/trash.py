@@ -5,7 +5,7 @@ import os
 import shutil
 import stat
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from .trashinfo import TrashInfo, TrashInfoError, format_info, parse_info
@@ -213,3 +213,27 @@ def restore(entry: Entry, to: str | None = None) -> str:
         raise TossError(f"{dest}: {e.strerror or e}") from None
     entry.info_path.unlink(missing_ok=True)
     return dest
+
+
+def purge(entry: Entry) -> None:
+    """Delete an entry for good: the data first, then its info file."""
+    path = entry.file_path
+    try:
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path)
+        else:
+            path.unlink(missing_ok=True)
+    except OSError as e:
+        raise TossError(f"{entry.name}: {e.strerror or e}") from None
+    entry.info_path.unlink(missing_ok=True)
+
+
+_UNITS = {"m": timedelta(minutes=1), "h": timedelta(hours=1), "d": timedelta(days=1), "w": timedelta(weeks=1)}
+
+
+def parse_age(text: str) -> timedelta:
+    """`30d`, `12h`, `2w` or `90m` as a timedelta."""
+    number, unit = text[:-1], text[-1:].lower()
+    if unit not in _UNITS or not number.isdigit():
+        raise TossError(f"{text}: bad age, use a number and m, h, d or w (e.g. 30d)")
+    return int(number) * _UNITS[unit]
