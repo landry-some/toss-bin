@@ -167,3 +167,49 @@ def matches(entry: Entry, pattern: str) -> bool:
             entry.original, pattern
         )
     return pattern in entry.original or pattern == entry.name
+
+
+def find(target: str, items: list[Entry], by_id: bool = False) -> Entry:
+    """Pick one entry by original path, then original name, then trash ID.
+
+    With `by_id`, only the trash ID is used. That's the way to choose between
+    several items that were deleted from the same path.
+    """
+    ids = [e for e in items if e.name == target]
+    if by_id:
+        if not ids:
+            raise TossError(f"{target}: no trash item with this ID")
+        return ids[0]
+    wanted = absolute(target)
+    found = [e for e in items if e.original == wanted]
+    if not found:
+        found = [e for e in items if os.path.basename(e.original) == target]
+    if not found:
+        found = ids
+    if not found:
+        raise TossError(f"{target}: not in the trash")
+    if len(found) > 1:
+        lines = "\n".join(f"  {e.name}  ({e.deleted:%Y-%m-%d %H:%M}, {e.original})" for e in found)
+        raise TossError(
+            f"{target}: matches {len(found)} items, pick one with 'toss restore --id ID':\n{lines}"
+        )
+    return found[0]
+
+
+def restore(entry: Entry, to: str | None = None) -> str:
+    """Move `entry` back to where it came from, or into folder `to`. Returns the new path."""
+    if to is not None:
+        if not os.path.isdir(to):
+            raise TossError(f"{to}: not a folder")
+        dest = os.path.join(absolute(to), os.path.basename(entry.original))
+    else:
+        dest = entry.original
+    if os.path.lexists(dest):
+        raise TossError(f"{dest}: already exists, not overwriting (use --to DIR)")
+    try:
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        shutil.move(entry.file_path, dest)
+    except OSError as e:
+        raise TossError(f"{dest}: {e.strerror or e}") from None
+    entry.info_path.unlink(missing_ok=True)
+    return dest

@@ -4,7 +4,7 @@ import argparse
 import sys
 
 from . import __version__
-from .trash import TossError, disk_size, entries, matches, put
+from .trash import TossError, disk_size, entries, find, matches, put, restore
 
 
 def _put_parser() -> argparse.ArgumentParser:
@@ -67,7 +67,31 @@ def cmd_list(argv: list[str]) -> int:
     return 0
 
 
-COMMANDS = {"put": cmd_put, "list": cmd_list, "ls": cmd_list}
+def cmd_restore(argv: list[str]) -> int:
+    p = argparse.ArgumentParser(
+        prog="toss restore",
+        description="Put items back where they were. TARGET is the original path, the original "
+        "file name, or a trash ID from 'toss list'.",
+    )
+    p.add_argument("targets", nargs="+", metavar="TARGET")
+    p.add_argument("--to", metavar="DIR", help="restore into DIR instead of the original folder")
+    p.add_argument("--id", action="store_true", help="treat each TARGET as a trash ID only")
+    args = p.parse_args(argv)
+
+    status = 0
+    for target in args.targets:
+        try:
+            # Re-read each time so two targets can't resolve to the same entry.
+            dest = restore(find(target, entries(), by_id=args.id), to=args.to)
+        except TossError as e:
+            print(f"toss: {e}", file=sys.stderr)
+            status = 1
+            continue
+        print(f"restored {dest}")
+    return status
+
+
+COMMANDS = {"put": cmd_put, "list": cmd_list, "ls": cmd_list, "restore": cmd_restore}
 
 
 def main(argv: list[str] | None = None) -> int:
