@@ -26,3 +26,19 @@ def test_put_subcommand_and_rm_flags(trash, tmp_path):
     (tmp_path / "work" / "dir").mkdir()
     assert main(["put", "-rf", "dir"]) == 0
     assert (trash / "files" / "dir").is_dir()
+
+
+def test_help_lists_subcommands(capsys):
+    import pytest
+
+    with pytest.raises(SystemExit):
+        main(["--help"])
+    out = capsys.readouterr().out
+    for cmd in ("toss list", "toss restore", "toss empty"):
+        assert cmd in out
+
+
+def test_dot_slash_trashes_file_named_like_command(trash, tmp_path):
+    (tmp_path / "work" / "list").write_text("x")
+    assert main(["./list"]) == 0
+    assert (trash / "files" / "list").exists()

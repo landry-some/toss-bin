@@ -22,6 +22,14 @@ def _put_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="toss",
         description="Move files and folders to the trash instead of deleting them.",
+        epilog="other commands:\n"
+        "  toss list [PATTERN]            show what is in the trash\n"
+        "  toss restore TARGET...         put items back where they were\n"
+        "  toss empty [--older-than AGE]  delete trashed items for good\n"
+        "run 'toss COMMAND --help' for details.\n"
+        "To trash a file named like a "
+        "command, use 'toss ./list'.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("paths", nargs="+", metavar="FILE")
     p.add_argument("-f", "--force", action="store_true", help="ignore missing files")
