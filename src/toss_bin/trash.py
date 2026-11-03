@@ -74,10 +74,30 @@ def _reserve_info(trash: Path, base: str, text: str) -> str:
     raise AssertionError("unreachable")
 
 
+def _is_within(path: str, parent: str) -> bool:
+    return path == parent or path.startswith(parent.rstrip(os.sep) + os.sep)
+
+
+def check_safe(path: str, original: str, trash: Path) -> None:
+    """Refuse paths that `rm` users almost never mean, or that would break the trash."""
+    if os.path.basename(path.rstrip(os.sep)) in (".", ".."):
+        raise TossError(f'{path}: refusing to trash "." or ".."')
+    if original == os.sep:
+        raise TossError(f"{path}: refusing to trash /")
+    if original == absolute("~"):
+        raise TossError(f"{path}: refusing to trash your home folder")
+    trash_dir = absolute(str(trash))
+    if _is_within(original, trash_dir):
+        raise TossError(f"{path}: already in the trash, use 'toss empty' to delete it")
+    if _is_within(trash_dir, original):
+        raise TossError(f"{path}: contains the trash folder ({trash_dir})")
+
+
 def put(path: str, trash: Path | None = None, now: datetime | None = None) -> Entry:
     """Move `path` into the trash and return the new entry."""
     trash = trash or home_trash()
     original = absolute(path)
+    check_safe(path, original, trash)
     if not os.path.lexists(original):
         raise TossError(f"{path}: no such file or directory")
 
