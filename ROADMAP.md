@@ -1,14 +1,14 @@
 # Roadmap
 
-Rough plan after v0.1. Hours are estimates, about 29 hours in total.
+Rough plan after v0.1. Hours are estimates, about 29.5 hours in total.
 
-## v0.1
+## v0.1 (done)
 
-- [ ] `toss FILE...` moves files and folders into the FreeDesktop trash
-- [ ] `toss list [PATTERN]` shows what is in the trash
-- [ ] `toss restore TARGET` puts an item back where it came from
-- [ ] `toss empty` deletes for good, with `--older-than` and a confirmation prompt
-- [ ] Refuse protected paths (`/`, home, the trash itself) with clear errors
+- [x] `toss FILE...` moves files and folders into the FreeDesktop trash
+- [x] `toss list [PATTERN]` shows what is in the trash
+- [x] `toss restore TARGET` puts an item back where it came from
+- [x] `toss empty` deletes for good, with `--older-than` and a confirmation prompt
+- [x] Refuse protected paths (`/`, home, the trash itself) with clear errors
 
 ## Features
 
