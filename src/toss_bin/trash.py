@@ -1,12 +1,14 @@
 """The home trash: moving items in, and finding what is there."""
 
+import fnmatch
 import os
 import shutil
+import stat
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from .trashinfo import TrashInfo, format_info
+from .trashinfo import TrashInfo, TrashInfoError, format_info, parse_info
 
 INFO_SUFFIX = ".trashinfo"
 
@@ -116,3 +118,52 @@ def put(path: str, trash: Path | None = None, now: datetime | None = None) -> En
         entry.info_path.unlink(missing_ok=True)
         raise TossError(f"{path}: {e.strerror or e}") from None
     return entry
+
+
+def entries(trash: Path | None = None) -> list[Entry]:
+    """Every readable entry in the trash, oldest first.
+
+    Info files that can't be parsed, or whose data file is gone, are skipped.
+    """
+    trash = trash or home_trash()
+    info_dir = trash / "info"
+    if not info_dir.is_dir():
+        return []
+    found = []
+    for info_file in info_dir.iterdir():
+        if not info_file.name.endswith(INFO_SUFFIX):
+            continue
+        name = info_file.name[: -len(INFO_SUFFIX)]
+        try:
+            info = parse_info(info_file.read_text(encoding="utf-8", errors="surrogateescape"))
+        except (OSError, TrashInfoError):
+            continue
+        entry = Entry(trash, name, info.path, info.deleted)
+        if os.path.lexists(entry.file_path):
+            found.append(entry)
+    found.sort(key=lambda e: (e.deleted, e.name))
+    return found
+
+
+def disk_size(path: Path) -> int:
+    """Bytes used by a file or a whole folder; symlinks count as themselves."""
+    st = os.lstat(path)
+    if not stat.S_ISDIR(st.st_mode):
+        return st.st_size
+    total = 0
+    for root, dirs, files in os.walk(path):
+        for name in dirs + files:
+            try:
+                total += os.lstat(os.path.join(root, name)).st_size
+            except OSError:
+                pass
+    return total
+
+
+def matches(entry: Entry, pattern: str) -> bool:
+    """Glob against the original name or path; plain text matches any part of the path."""
+    if any(c in pattern for c in "*?["):
+        return fnmatch.fnmatchcase(os.path.basename(entry.original), pattern) or fnmatch.fnmatchcase(
+            entry.original, pattern
+        )
+    return pattern in entry.original or pattern == entry.name
