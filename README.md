@@ -36,6 +36,7 @@ toss list --older-than 30d --larger-than 10M
 toss restore notes.txt           # back to where it was
 toss restore --to ~/tmp notes.txt
 toss restore --id notes.2.txt    # pick one when several share a path
+toss du                          # total size and the 10 biggest items
 toss empty --older-than 30d      # delete for good, asks first
 toss empty -y                    # empty everything without asking
 ```
@@ -70,6 +71,11 @@ restores nothing. Run it again with `--id`.
 A restore never overwrites anything. If the original path is taken, `toss` stops;
 use `--to DIR` to put the item somewhere else. If the original folder is gone, it is
 created again.
+
+### Size
+
+`toss du` prints the biggest items first, then the total size and item count of the
+whole trash. `-n N` shows N items instead of 10; the total always covers everything.
 
 ### Emptying
 

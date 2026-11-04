@@ -27,6 +27,7 @@ def _put_parser() -> argparse.ArgumentParser:
         "  toss list [PATTERN]            show what is in the trash\n"
         "  toss restore TARGET...         put items back where they were\n"
         "  toss empty [--older-than AGE]  delete trashed items for good\n"
+        "  toss du [-n N]                 show the trash size and the biggest items\n"
         "run 'toss COMMAND --help' for details.\n"
         "To trash a file named like a "
         "command, use 'toss ./list'.",
@@ -108,6 +109,21 @@ def cmd_list(argv: list[str]) -> int:
     return 0
 
 
+def cmd_du(argv: list[str]) -> int:
+    p = argparse.ArgumentParser(prog="toss du", description="Show the trash size and the biggest items.")
+    p.add_argument("-n", "--top", type=int, default=10, metavar="N", help="how many items to show (default 10)")
+    args = p.parse_args(argv)
+
+    sized = sorted(((_size(e.file_path), e) for e in entries()), key=lambda pair: -pair[0])
+    if not sized:
+        print("trash is empty", file=sys.stderr)
+        return 0
+    for size, e in sized[: max(args.top, 0)]:
+        print(f"{human_size(size):>7}  {e.name}  {e.original}")
+    print(f"{human_size(sum(size for size, _ in sized)):>7}  total, {len(sized)} item(s)")
+    return 0
+
+
 def cmd_restore(argv: list[str]) -> int:
     p = argparse.ArgumentParser(
         prog="toss restore",
@@ -177,6 +193,7 @@ COMMANDS = {
     "ls": cmd_list,
     "restore": cmd_restore,
     "empty": cmd_empty,
+    "du": cmd_du,
 }
 
 
