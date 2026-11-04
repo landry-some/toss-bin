@@ -36,6 +36,7 @@ toss list --older-than 30d --larger-than 10M
 toss restore notes.txt           # back to where it was
 toss restore --to ~/tmp notes.txt
 toss restore --id notes.2.txt    # pick one when several share a path
+toss undo                        # put back everything from the last toss
 toss du                          # total size and the 10 biggest items
 toss empty --older-than 30d      # delete for good, asks first
 toss empty -y                    # empty everything without asking
@@ -71,6 +72,11 @@ restores nothing. Run it again with `--id`.
 A restore never overwrites anything. If the original path is taken, `toss` stops;
 use `--to DIR` to put the item somewhere else. If the original folder is gone, it is
 created again.
+
+`toss undo` restores every item from the last `toss` call that trashed something. It
+remembers the trash IDs in `$XDG_STATE_HOME/toss/last` (`~/.local/state/toss/last`),
+so it never picks up an item deleted another way. Items that can't go back because
+their path is taken stay in that list, so you can move the blocker and run it again.
 
 ### Size
 
@@ -108,5 +114,5 @@ but it has only been tested on Linux.
 python -m pytest
 ```
 
-Tests point `XDG_DATA_HOME` at a temporary folder, so they never touch your real
-trash.
+Tests point `XDG_DATA_HOME` and `XDG_STATE_HOME` at a temporary folder, so they
+never touch your real trash.

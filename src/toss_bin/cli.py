@@ -10,12 +10,14 @@ from .trash import (
     disk_size,
     entries,
     find,
+    load_last_call,
     matches,
     parse_age,
     parse_size,
     purge,
     put,
     restore,
+    save_last_call,
 )
 
 
@@ -27,6 +29,7 @@ def _put_parser() -> argparse.ArgumentParser:
         "  toss list [PATTERN]            show what is in the trash\n"
         "  toss restore TARGET...         put items back where they were\n"
         "  toss empty [--older-than AGE]  delete trashed items for good\n"
+        "  toss undo                      restore everything from the last toss\n"
         "  toss du [-n N]                 show the trash size and the biggest items\n"
         "run 'toss COMMAND --help' for details.\n"
         "To trash a file named like a "
@@ -45,6 +48,7 @@ def _put_parser() -> argparse.ArgumentParser:
 def cmd_put(argv: list[str]) -> int:
     args = _put_parser().parse_args(argv)
     status = 0
+    tossed = []
     for path in args.paths:
         try:
             entry = put(path)
@@ -54,8 +58,11 @@ def cmd_put(argv: list[str]) -> int:
             print(f"toss: {e}", file=sys.stderr)
             status = 1
             continue
+        tossed.append(entry.name)
         if args.verbose:
             print(f"{entry.original} -> trash ({entry.name})")
+    if tossed:
+        save_last_call(tossed)
     return status
 
 
@@ -148,6 +155,31 @@ def cmd_restore(argv: list[str]) -> int:
     return status
 
 
+def cmd_undo(argv: list[str]) -> int:
+    p = argparse.ArgumentParser(prog="toss undo", description="Restore everything from the last 'toss' call.")
+    p.parse_args(argv)
+
+    names = load_last_call()
+    if not names:
+        print("toss: nothing to undo", file=sys.stderr)
+        return 1
+    status = 0
+    left = []
+    for name in names:
+        try:
+            dest = restore(find(name, entries(), by_id=True))
+        except TossError as e:
+            print(f"toss: {e}", file=sys.stderr)
+            status = 1
+            # Keep items that are still in the trash so a second undo can retry them.
+            if "no trash item" not in str(e):
+                left.append(name)
+            continue
+        print(f"restored {dest}")
+    save_last_call(left)
+    return status
+
+
 def cmd_empty(argv: list[str]) -> int:
     p = argparse.ArgumentParser(prog="toss empty", description="Delete trashed items for good.")
     p.add_argument("--older-than", metavar="AGE", help="only items deleted more than AGE ago (30d, 12h, 2w)")
@@ -193,6 +225,7 @@ COMMANDS = {
     "ls": cmd_list,
     "restore": cmd_restore,
     "empty": cmd_empty,
+    "undo": cmd_undo,
     "du": cmd_du,
 }
 

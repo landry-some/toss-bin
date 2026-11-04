@@ -14,7 +14,7 @@ Rough plan after v0.1. Hours are estimates, about 29.5 hours in total.
 
 - [ ] Per-volume trash (`$topdir/.Trash-$uid`) so files on USB drives and other
       mounts are not copied to the home trash (4h)
-- [ ] `toss undo` to restore everything from the last `toss` call (2h)
+- [x] `toss undo` to restore everything from the last `toss` call (2h)
 - [ ] Interactive restore picker when a match is ambiguous (3h)
 - [x] `--older-than` and `--larger-than` filters for `toss list` (1.5h)
 - [x] `toss du` to show the total trash size and the biggest items (1h)

@@ -1,6 +1,7 @@
 """The home trash: moving items in, and finding what is there."""
 
 import fnmatch
+import json
 import os
 import re
 import shutil
@@ -21,6 +22,29 @@ class TossError(Exception):
 def home_trash() -> Path:
     data_home = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
     return Path(data_home) / "Trash"
+
+
+def last_call_file() -> Path:
+    """Where `toss` remembers the trash IDs from its last run, for `toss undo`."""
+    state_home = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
+    return Path(state_home) / "toss" / "last"
+
+
+def save_last_call(names: list[str]) -> None:
+    path = last_call_file()
+    if not names:
+        path.unlink(missing_ok=True)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    # ensure_ascii keeps names that are not valid UTF-8 as \udcXX escapes.
+    path.write_text(json.dumps(names) + "\n", encoding="ascii")
+
+
+def load_last_call() -> list[str]:
+    try:
+        return json.loads(last_call_file().read_text(encoding="ascii"))
+    except FileNotFoundError:
+        return []
 
 
 @dataclass(frozen=True)
