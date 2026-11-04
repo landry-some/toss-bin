@@ -40,6 +40,7 @@ toss undo                        # put back everything from the last toss
 toss du                          # total size and the 10 biggest items
 toss empty --older-than 30d      # delete for good, asks first
 toss empty -y                    # empty everything without asking
+toss clean                       # remove orphans left by crashes or other tools
 ```
 
 `toss` also accepts `-r`, `-R` and `-rf` so `rm` habits keep working. Folders are
@@ -88,6 +89,12 @@ whole trash. `-n N` shows N items instead of 10; the total always covers everyth
 `toss empty` asks before deleting anything and refuses to run without a terminal
 unless you pass `--yes`. `--older-than` takes a number with `m`, `h`, `d` or `w`
 (minutes, hours, days, weeks).
+
+### Orphans
+
+An orphan is an info file whose data is gone, or data in `Trash/files/` with no info
+file (so its original path is unknown). `toss list` hides them. `toss clean` lists
+them and deletes them for good, asking first like `toss empty` (`--yes` to skip).
 
 ### What it won't trash
 

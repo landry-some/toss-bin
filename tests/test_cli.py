@@ -34,7 +34,7 @@ def test_help_lists_subcommands(capsys):
     with pytest.raises(SystemExit):
         main(["--help"])
     out = capsys.readouterr().out
-    for cmd in ("toss list", "toss restore", "toss empty", "toss undo", "toss du"):
+    for cmd in ("toss list", "toss restore", "toss empty", "toss undo", "toss du", "toss clean"):
         assert cmd in out
 
 

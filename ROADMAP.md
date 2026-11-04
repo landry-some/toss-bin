@@ -25,7 +25,7 @@ Rough plan after v0.1. Hours are estimates, about 29.5 hours in total.
 - [ ] Paths that are not valid UTF-8, and percent-encoding round trips (1.5h)
 - [ ] Broken symlinks and symlinks to folders: trash the link, never the target (1h)
 - [ ] Keep the spec's `directorysizes` cache in sync when trashing and emptying (1.5h)
-- [ ] Detect and clean orphan entries (info file without data, or the opposite) (1h)
+- [x] Detect and clean orphan entries (info file without data, or the opposite) (1h)
 
 ## Refactors
 

@@ -12,10 +12,12 @@ from .trash import (
     find,
     load_last_call,
     matches,
+    orphans,
     parse_age,
     parse_size,
     purge,
     put,
+    remove_path,
     restore,
     save_last_call,
 )
@@ -31,6 +33,7 @@ def _put_parser() -> argparse.ArgumentParser:
         "  toss empty [--older-than AGE]  delete trashed items for good\n"
         "  toss undo                      restore everything from the last toss\n"
         "  toss du [-n N]                 show the trash size and the biggest items\n"
+        "  toss clean                     remove orphan info files and data\n"
         "run 'toss COMMAND --help' for details.\n"
         "To trash a file named like a "
         "command, use 'toss ./list'.",
@@ -199,14 +202,8 @@ def cmd_empty(argv: list[str]) -> int:
         return 0
 
     total = human_size(sum(_size(e.file_path) for e in items))
-    if not args.yes:
-        if not sys.stdin.isatty():
-            print("toss: not a terminal, pass --yes to empty the trash", file=sys.stderr)
-            return 1
-        answer = input(f"Permanently delete {len(items)} item(s), {total}? [y/N] ")
-        if answer.strip().lower() not in ("y", "yes"):
-            print("cancelled", file=sys.stderr)
-            return 1
+    if not _confirm(f"Permanently delete {len(items)} item(s), {total}?", args.yes, "empty the trash"):
+        return 1
 
     status = 0
     for e in items:
@@ -219,6 +216,49 @@ def cmd_empty(argv: list[str]) -> int:
     return status
 
 
+def _confirm(question: str, yes: bool, flag_hint: str) -> bool:
+    """Ask on a terminal; without one, only go ahead with --yes."""
+    if yes:
+        return True
+    if not sys.stdin.isatty():
+        print(f"toss: not a terminal, pass --yes to {flag_hint}", file=sys.stderr)
+        return False
+    if input(f"{question} [y/N] ").strip().lower() not in ("y", "yes"):
+        print("cancelled", file=sys.stderr)
+        return False
+    return True
+
+
+def cmd_clean(argv: list[str]) -> int:
+    p = argparse.ArgumentParser(
+        prog="toss clean",
+        description="Remove orphans from the trash: info files whose data is gone, "
+        "and data that has no info file (its original path is unknown).",
+    )
+    p.add_argument("-y", "--yes", action="store_true", help="don't ask for confirmation")
+    args = p.parse_args(argv)
+
+    found = orphans()
+    if not found:
+        print("no orphans", file=sys.stderr)
+        return 0
+    for path in found:
+        kind = "info without data" if path.parent.name == "info" else "data without info"
+        print(f"{kind}: {path}")
+    if not _confirm(f"Permanently delete {len(found)} orphan(s)?", args.yes, "clean the trash"):
+        return 1
+
+    status = 0
+    for path in found:
+        try:
+            remove_path(path)
+        except OSError as e:
+            print(f"toss: {path}: {e.strerror or e}", file=sys.stderr)
+            status = 1
+    print(f"deleted {len(found)} orphan(s)")
+    return status
+
+
 COMMANDS = {
     "put": cmd_put,
     "list": cmd_list,
@@ -227,6 +267,7 @@ COMMANDS = {
     "empty": cmd_empty,
     "undo": cmd_undo,
     "du": cmd_du,
+    "clean": cmd_clean,
 }
 
 

@@ -170,6 +170,29 @@ def entries(trash: Path | None = None) -> list[Entry]:
     return found
 
 
+def orphans(trash: Path | None = None) -> list[Path]:
+    """Info files whose data is gone, and data with no info file, sorted by path."""
+    trash = trash or home_trash()
+    info_dir, files_dir = trash / "info", trash / "files"
+    info_names = (
+        {p.name[: -len(INFO_SUFFIX)] for p in info_dir.iterdir() if p.name.endswith(INFO_SUFFIX)}
+        if info_dir.is_dir()
+        else set()
+    )
+    data_names = {p.name for p in files_dir.iterdir()} if files_dir.is_dir() else set()
+    found = [info_dir / (n + INFO_SUFFIX) for n in info_names - data_names]
+    found += [files_dir / n for n in data_names - info_names]
+    return sorted(found)
+
+
+def remove_path(path: Path) -> None:
+    """Delete a file, symlink or whole folder for good."""
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+    else:
+        path.unlink(missing_ok=True)
+
+
 def disk_size(path: Path) -> int:
     """Bytes used by a file or a whole folder; symlinks count as themselves."""
     st = os.lstat(path)
@@ -242,12 +265,8 @@ def restore(entry: Entry, to: str | None = None) -> str:
 
 def purge(entry: Entry) -> None:
     """Delete an entry for good: the data first, then its info file."""
-    path = entry.file_path
     try:
-        if path.is_dir() and not path.is_symlink():
-            shutil.rmtree(path)
-        else:
-            path.unlink(missing_ok=True)
+        remove_path(entry.file_path)
     except OSError as e:
         raise TossError(f"{entry.name}: {e.strerror or e}") from None
     entry.info_path.unlink(missing_ok=True)
