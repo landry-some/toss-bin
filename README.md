@@ -32,6 +32,7 @@ toss -v *.tmp                    # -v: print each item and its trash ID
 toss list                        # everything in the trash, oldest first
 toss list '*.pdf'                # glob on the original name or path
 toss list projects/old           # or any part of the original path
+toss list --older-than 30d --larger-than 10M
 toss restore notes.txt           # back to where it was
 toss restore --to ~/tmp notes.txt
 toss restore --id notes.2.txt    # pick one when several share a path
@@ -54,6 +55,11 @@ or `toss ./list`, to trash a file that is named like a command.
 The columns are the deletion time, the size on disk, the trash ID and the original
 path. The trash ID is the item's name inside `Trash/files/`. When a name is already
 taken, a number is added before the extension (`notes.2.txt`).
+
+`--older-than AGE` keeps only items deleted more than AGE ago (same format as
+`toss empty`), and `--larger-than SIZE` only items bigger than SIZE, a number with an
+optional `K`, `M`, `G` or `T` (powers of 1024). They combine with each other and with
+`PATTERN`.
 
 ### Restoring
 

@@ -12,6 +12,7 @@ from .trash import (
     find,
     matches,
     parse_age,
+    parse_size,
     purge,
     put,
     restore,
@@ -76,7 +77,16 @@ def human_size(n: int) -> str:
 def cmd_list(argv: list[str]) -> int:
     p = argparse.ArgumentParser(prog="toss list", description="Show what is in the trash.")
     p.add_argument("pattern", nargs="?", help="glob or text to match against the original path")
+    p.add_argument("--older-than", metavar="AGE", help="only items deleted more than AGE ago (30d, 12h, 2w)")
+    p.add_argument("--larger-than", metavar="SIZE", help="only items bigger than SIZE (500K, 10M, 1G)")
     args = p.parse_args(argv)
+
+    try:
+        cutoff = datetime.now() - parse_age(args.older_than) if args.older_than else None
+        min_size = parse_size(args.larger_than) if args.larger_than else None
+    except TossError as e:
+        print(f"toss: {e}", file=sys.stderr)
+        return 2
 
     items = entries()
     if not items:
@@ -84,11 +94,16 @@ def cmd_list(argv: list[str]) -> int:
         return 0
     if args.pattern:
         items = [e for e in items if matches(e, args.pattern)]
+    if cutoff:
+        items = [e for e in items if e.deleted < cutoff]
     for e in items:
         try:
-            size = human_size(disk_size(e.file_path))
+            nbytes = disk_size(e.file_path)
         except OSError:
-            size = "?"
+            nbytes = None
+        if min_size is not None and (nbytes is None or nbytes <= min_size):
+            continue
+        size = "?" if nbytes is None else human_size(nbytes)
         print(f"{e.deleted:%Y-%m-%d %H:%M}  {size:>7}  {e.name}  {e.original}")
     return 0
 

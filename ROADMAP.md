@@ -16,7 +16,7 @@ Rough plan after v0.1. Hours are estimates, about 29.5 hours in total.
       mounts are not copied to the home trash (4h)
 - [ ] `toss undo` to restore everything from the last `toss` call (2h)
 - [ ] Interactive restore picker when a match is ambiguous (3h)
-- [ ] `--older-than` and `--larger-than` filters for `toss list` (1.5h)
+- [x] `--older-than` and `--larger-than` filters for `toss list` (1.5h)
 - [ ] `toss du` to show the total trash size and the biggest items (1h)
 - [ ] macOS backend using `~/.Trash` (3h)
 

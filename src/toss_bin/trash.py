@@ -2,6 +2,7 @@
 
 import fnmatch
 import os
+import re
 import shutil
 import stat
 from dataclasses import dataclass
@@ -237,3 +238,15 @@ def parse_age(text: str) -> timedelta:
     if unit not in _UNITS or not number.isdigit():
         raise TossError(f"{text}: bad age, use a number and m, h, d or w (e.g. 30d)")
     return int(number) * _UNITS[unit]
+
+
+_SIZE_RE = re.compile(r"(\d+(?:\.\d+)?)([bkmgt]?)", re.IGNORECASE)
+_SIZE_UNITS = {"": 1, "b": 1, "k": 1024, "m": 1024**2, "g": 1024**3, "t": 1024**4}
+
+
+def parse_size(text: str) -> int:
+    """`500`, `100K`, `10M` or `2G` as a number of bytes (powers of 1024)."""
+    m = _SIZE_RE.fullmatch(text)
+    if not m:
+        raise TossError(f"{text}: bad size, use a number and K, M, G or T (e.g. 10M)")
+    return int(float(m[1]) * _SIZE_UNITS[m[2].lower()])

@@ -1,4 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+
+import pytest
 
 from toss_bin.cli import human_size, main
 from toss_bin.trash import entries, put
@@ -65,3 +67,59 @@ def test_list_filters(trash, tmp_path, capsys):
 def test_list_empty_trash(trash, capsys):
     assert main(["list"]) == 0
     assert "trash is empty" in capsys.readouterr().err
+
+
+def test_parse_size():
+    from toss_bin.trash import parse_size
+
+    assert parse_size("500") == 500
+    assert parse_size("100b") == 100
+    assert parse_size("2K") == 2048
+    assert parse_size("1.5m") == 1536 * 1024
+    assert parse_size("1G") == 1024**3
+
+
+@pytest.mark.parametrize("text", ["", "K", "-1K", "1.2.3M", "10X", "ten"])
+def test_parse_size_rejects(text):
+    from toss_bin.trash import TossError, parse_size
+
+    with pytest.raises(TossError, match="bad size"):
+        parse_size(text)
+
+
+def test_list_older_than(trash, tmp_path, capsys):
+    work = tmp_path / "work"
+    now = datetime.now()
+    for name, age in [("old", 40), ("new", 2)]:
+        (work / name).write_text("x")
+        put(name, now=now - timedelta(days=age))
+    assert main(["list", "--older-than", "30d"]) == 0
+    assert [line.split()[-2] for line in capsys.readouterr().out.splitlines()] == ["old"]
+
+
+def test_list_larger_than(trash, tmp_path, capsys):
+    work = tmp_path / "work"
+    (work / "big").write_text("x" * 4096)
+    (work / "small").write_text("x" * 100)
+    (work / "edge").write_text("x" * 1024)
+    for name in ["big", "small", "edge"]:
+        put(name)
+    assert main(["list", "--larger-than", "1K"]) == 0
+    assert [line.split()[-2] for line in capsys.readouterr().out.splitlines()] == ["big"]
+
+
+def test_list_filters_combine(trash, tmp_path, capsys):
+    work = tmp_path / "work"
+    now = datetime.now()
+    for name, age, size in [("a.log", 40, 5000), ("b.log", 2, 5000), ("c.txt", 40, 5000), ("d.log", 40, 10)]:
+        (work / name).write_text("x" * size)
+        put(name, now=now - timedelta(days=age))
+    assert main(["list", "*.log", "--older-than", "1w", "--larger-than", "1K"]) == 0
+    assert [line.split()[-2] for line in capsys.readouterr().out.splitlines()] == ["a.log"]
+
+
+def test_list_bad_filters(trash, capsys):
+    assert main(["list", "--older-than", "soon"]) == 2
+    assert "bad age" in capsys.readouterr().err
+    assert main(["list", "--larger-than", "huge"]) == 2
+    assert "bad size" in capsys.readouterr().err
